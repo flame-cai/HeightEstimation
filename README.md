@@ -32,32 +32,25 @@ Child body regions are extracted using a segmentation framework combining Ground
 
 To improve robustness across image conditions, multiple prompts are evaluated sequentially:
 
-```python
-["child", "person", "human"]
-```
+* child
+* person
+* human
 
 For each prompt, the framework generates candidate segmentation masks and bounding boxes. Candidate detections are ranked according to both object size and proximity to the image center.
 
-The ranking score is computed as:
+The ranking score is defined as:
 
-[
-Score =
-\frac{|x_c - x_{center}|}{W}
-----------------------------
-
-3
-\left(
-\frac{A_{box}}{A_{image}}
-\right)
-]
+```text
+Score = |xc - xcenter| / W - 3 × (Abox / Aimage)
+```
 
 where:
 
-* (x_c) is the bounding-box center,
-* (x_{center}) is the image center,
-* (W) is image width,
-* (A_{box}) is bounding-box area,
-* (A_{image}) is total image area.
+* `xc` is the bounding-box center
+* `xcenter` is the image center
+* `W` is image width
+* `Abox` is bounding-box area
+* `Aimage` is total image area
 
 This ranking strategy favors large, centrally positioned detections that are likely to correspond to the photographed child.
 
@@ -71,15 +64,14 @@ A reference marker serves as the geometric anchor required for monocular height 
 
 The marker is detected using the same segmentation framework with the prompts:
 
-```python
-["post-it note", "sticky note"]
-```
+* post-it note
+* sticky note
 
 For the selected marker mask, the uppermost foreground pixel row is extracted and defined as:
 
-[
+```text
 midPx
-]
+```
 
 which represents the image row corresponding to the known reference height above ground level.
 
@@ -87,11 +79,11 @@ which represents the image row corresponding to the known reference height above
 
 When the marker cannot be detected, the reference row is approximated using a fixed fraction of image height:
 
-[
-midPx = 0.484 \times H_{image}
-]
+```text
+midPx = 0.484 × Himage
+```
 
-where (H_{image}) denotes image height in pixels.
+where `Himage` denotes image height in pixels.
 
 This fallback value was empirically determined for the image acquisition setup used in the study.
 
@@ -105,17 +97,17 @@ The child segmentation mask is first cropped to its bounding region. Pose landma
 
 The nose landmark is extracted and used to estimate the horizontal center of the head:
 
-[
+```text
 headCol
-]
+```
 
 A narrow vertical band centered around this location is then examined within the segmentation mask.
 
 The uppermost foreground pixel contained within this band is identified as:
 
-[
+```text
 topPx
-]
+```
 
 Restricting the search to the facial region reduces susceptibility to segmentation artifacts, raised-arm postures, and background objects that might otherwise influence estimation of the upper body boundary.
 
@@ -127,9 +119,9 @@ The lower body boundary is estimated from the child segmentation mask.
 
 Rather than selecting the absolute lowest foreground pixel, the algorithm uses the 98th percentile of foreground row indices:
 
-[
+```text
 botPx
-]
+```
 
 This approach improves robustness against segmentation noise and isolated outlier pixels near the feet while preserving a stable estimate of the lower body boundary.
 
@@ -141,35 +133,34 @@ Height estimation is performed using a pinhole-camera geometric model.
 
 For each image view, projected body height is computed as:
 
-[
-P_p = botPx - topPx
-]
+```text
+Pp = botPx − topPx
+```
 
-where (P_p) denotes projected body height in image space.
+where `Pp` denotes projected body height in image space.
 
 The projected distance between the reference row and the detected foot position is computed as:
 
-[
-P_c = botPx - midPx
-]
+```text
+Pc = botPx − midPx
+```
 
-Using the known reference height (H_c), height is estimated as:
+Using the known reference height `Hc`, height is estimated as:
 
-[
-H_i =
-\frac{H_c \times P_p}{P_c}
-]
+```text
+Hi = (Hc × Pp) / Pc
+```
 
 where:
 
-* (H_i) is the estimated height,
-* (H_c) is the known reference height,
-* (P_p) is projected body height,
-* (P_c) is projected reference distance.
+* `Hi` is the estimated height
+* `Hc` is the known reference height
+* `Pp` is projected body height
+* `Pc` is projected reference distance
 
-In the study accompanying this repository, (H_c = 70) cm.
+In the study accompanying this repository, `Hc = 70 cm`.
 
-Predictions associated with invalid geometric configurations ((P_p \le 0) or (P_c \le 0)) are discarded.
+Predictions associated with invalid geometric configurations (`Pp ≤ 0` or `Pc ≤ 0`) are discarded.
 
 ---
 
@@ -179,40 +170,18 @@ Independent height estimates are generated from front-view and side-view photogr
 
 The final height prediction is computed using a weighted ensemble:
 
-[
-H_{ensemble}
-============
-
-\frac{
-\sum_i H_i P_{c,i}
-}{
-\sum_i P_{c,i}
-}
-]
+```text
+Hensemble = Σ(Hi × Pc_i) / Σ(Pc_i)
+```
 
 where:
 
-* (H_i) denotes the height estimate from image view (i),
-* (P_{c,i}) denotes the corresponding projected reference distance.
+* `Hi` denotes the height estimate from image view `i`
+* `Pc_i` denotes the corresponding projected reference distance
 
 This weighting strategy assigns greater influence to predictions associated with larger geometric reference distances and improves robustness against view-specific segmentation or landmark localization errors.
 
 If only one valid prediction is available, that prediction is used directly.
-
----
-
-## Evaluation
-
-Predicted heights are compared against manually measured anthropometric heights.
-
-The repository reports the following evaluation metrics:
-
-* Mean Absolute Error (MAE)
-* Root Mean Squared Error (RMSE)
-* Mean Absolute Percentage Error (MAPE)
-* Pearson Correlation Coefficient (r)
-
-These metrics are computed using all participants with valid ensemble predictions.
 
 ---
 
@@ -232,12 +201,12 @@ Performance may degrade when these assumptions are violated. Additional validati
 
 ## References
 
-1. Liu S, Zeng Z, Ren T, et al. **Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection.** *arXiv*. 2023. doi:10.48550/arXiv.2303.05499
+1. Liu S, Zeng Z, Ren T, et al. *Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection*. arXiv. 2023.
 
-2. Ravi N, Gabeur V, Hu YT, et al. **SAM 2: Segment Anything in Images and Videos.** *arXiv*. 2024. doi:10.48550/arXiv.2408.00714
+2. Ravi N, Gabeur V, Hu YT, et al. *SAM 2: Segment Anything in Images and Videos*. arXiv. 2024.
 
-3. Lugaresi C, Tang J, Nash H, et al. **MediaPipe: A Framework for Building Perception Pipelines.** *arXiv*. 2019. doi:10.48550/arXiv.1906.08172
+3. Lugaresi C, Tang J, Nash H, et al. *MediaPipe: A Framework for Building Perception Pipelines*. arXiv. 2019.
 
-4. Bazarevsky V, Grishchenko I, Raveendran K, et al. **BlazePose: On-Device Real-Time Body Pose Tracking.** *arXiv*. 2020. doi:10.48550/arXiv.2006.10204
+4. Bazarevsky V, Grishchenko I, Raveendran K, et al. *BlazePose: On-Device Real-Time Body Pose Tracking*. arXiv. 2020.
 
 ---
