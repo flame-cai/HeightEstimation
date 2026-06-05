@@ -1,99 +1,243 @@
-# Photograph-Based Pediatric Height Estimation
+# Estimating Pediatric Height From Monocular RGB Photographs for Child Nutrition Screening
 
-Monocular RGB image-based pediatric standing height estimation and LHFA nutritional risk screening using computer vision and geometric modeling techniques.
+Photograph-based pediatric standing height estimation using image segmentation, pose landmark detection, and geometric modeling.
 
 ---
 
-# Methodology
+## Overview
 
-The proposed study developed a photograph-based pediatric height estimation framework using monocular RGB images and geometric modeling techniques. For each participant, front-view and side-view photographs were captured using a fixed camera setup. A post-it marker was pasted such that its upper edge was positioned exactly 70 cm above the ground level, thereby serving as the optical reference point for geometric calculations. All images were orientation-corrected using EXIF metadata and converted to RGB format before further processing.
+This repository accompanies the research letter **"Estimating Pediatric Height From Monocular RGB Photographs for Child Nutrition Screening"** and contains the implementation of a computer vision pipeline for estimating pediatric standing height from monocular RGB photographs.
 
-Child body regions and post-it reference markers were extracted using a segmentation framework combining Grounding DINO and SAM. The segmentation pipeline generated multiple candidate detections for each object category. Candidate masks were ranked according to object size and proximity to the image center, and the highest-ranked valid segmentation mask was selected for subsequent processing. Child masks occupying less than 1% of the image area were rejected to reduce false detections.
+The proposed framework combines image segmentation, pose landmark detection, and geometric modeling to estimate standing height using ordinary smartphone photographs. The method requires a reference object positioned at a known height above ground level and does not require specialized depth sensors, stereo cameras, or dedicated anthropometric equipment.
 
-The upper edge of the detected post-it marker was used to estimate the optical reference row (`midPx`). When the post-it marker could not be detected, the midpoint was approximated using a fixed fraction of the image height:
+For each participant, front-view and side-view photographs are acquired using a fixed camera setup. A reference marker is positioned such that its upper edge is located at a known height above the ground plane. This known reference height is subsequently used for geometric height estimation.
 
-```math
-midPx = 0.484 \times H_{image}
+In the study accompanying this repository, a post-it marker was used as the reference object and positioned with its upper edge exactly 70 cm above ground level.
+
+The processing pipeline consists of five major stages:
+
+1. Child segmentation
+2. Reference marker detection
+3. Head localization
+4. Foot localization
+5. Geometric height estimation and multi-view ensembling
+
+---
+
+## Methodology
+
+### Child Segmentation
+
+Child body regions are extracted using a segmentation framework combining Grounding DINO and the Segment Anything Model (SAM).
+
+To improve robustness across image conditions, multiple prompts are evaluated sequentially:
+
+```python
+["child", "person", "human"]
 ```
 
-where `H_image` denotes the image height in pixels.
+For each prompt, the framework generates candidate segmentation masks and bounding boxes. Candidate detections are ranked according to both object size and proximity to the image center.
 
-To improve robustness against posture variations and raised-arm artifacts, MediaPipe Pose and BlazePose were employed to estimate facial landmarks including the nose and ears. The detected child mask was first cropped to its bounding region before pose estimation was performed. The horizontal head center was estimated using the detected nose landmark, and the top of the head (`topPx`) was determined by vertically scanning a narrow column band around the estimated head center within the segmentation mask. This approach reduced the likelihood of raised hands or background artifacts being incorrectly identified as the upper body boundary.
+The ranking score is computed as:
 
-The lower body boundary (`botPx`) was estimated from the lower extent of the segmentation mask. Instead of selecting the absolute lowest foreground pixel, the 98th percentile of foreground row indices was used to improve robustness against segmentation noise and isolated outlier pixels near the feet.
+[
+Score =
+\frac{|x_c - x_{center}|}{W}
+----------------------------
 
-Height estimation was performed using a pinhole camera geometry model. For each image view, the projected body height in image space was computed as:
-
-```math
-P_p = botPx - topPx
-```
-
-and the projected distance between the optical reference row and the detected foot position was computed as:
-
-```math
-P_c = botPx - midPx
-```
-
-The raw height estimate for each image view was subsequently calculated as:
-
-```math
-H_i = \frac{H_c \times P_p}{P_c}
-```
+3
+\left(
+\frac{A_{box}}{A_{image}}
+\right)
+]
 
 where:
 
-- `H_c` = camera reference height (70 cm)
-- `P_p` = projected body height in pixels
-- `P_c` = projected reference distance in pixels
+* (x_c) is the bounding-box center,
+* (x_{center}) is the image center,
+* (W) is image width,
+* (A_{box}) is bounding-box area,
+* (A_{image}) is total image area.
 
-Separate raw height estimates were generated independently from front-view and side-view images. The final ensemble estimate was computed using a weighted average of both view-specific predictions:
+This ranking strategy favors large, centrally positioned detections that are likely to correspond to the photographed child.
 
-```math
-H_{ensemble} =
-\frac{\sum_i H_i \times P_{c,i}}
-{\sum_i P_{c,i}}
-```
-
-where `P_{c,i}` denotes the vertical pixel distance between the optical reference row and the detected foot position for each image view. This weighted ensemble strategy improved stability against viewpoint-specific segmentation errors and posture variations.
-
-For nutritional screening analysis, the predicted heights were converted into Length/Height-for-Age (LHFA) z-scores using the WHO 2006 Child Growth Standards.
+Segmentation masks occupying less than 1% of the image area are discarded to reduce false detections. The highest-ranked valid mask is selected for subsequent processing.
 
 ---
 
-# References
+### Reference Marker Detection
 
-```bibtex
-@article{liu2023grounding,
-  title={Grounding dino: Marrying dino with grounded pre-training for open-set object detection},
-  author={Liu, Shilong and Zeng, Zhaoyang and Ren, Tianhe and others},
-  journal={arXiv preprint arXiv:2303.05499},
-  year={2023}
-}
+A reference marker serves as the geometric anchor required for monocular height estimation.
+
+The marker is detected using the same segmentation framework with the prompts:
+
+```python
+["post-it note", "sticky note"]
 ```
 
-```bibtex
-@article{ravi2024sam2,
-  title={SAM 2: Segment Anything in Images and Videos},
-  author={Ravi, Nikhila and Gabeur, Valentin and Hu, Yuan-Ting and others},
-  journal={arXiv preprint arXiv:2408.00714},
-  year={2024}
-}
-```
+For the selected marker mask, the uppermost foreground pixel row is extracted and defined as:
 
-```bibtex
-@article{lugaresi2019mediapipe,
-  title={Mediapipe: A framework for building perception pipelines},
-  author={Lugaresi, Camillo and Tang, Jiuqiang and Nash, Hadon and others},
-  journal={arXiv preprint arXiv:1906.08172},
-  year={2019}
-}
-```
+[
+midPx
+]
 
-```bibtex
-@article{bazarevsky2020blazepose,
-  title={Blazepose: On-device real-time body pose tracking},
-  author={Bazarevsky, Valentin and Grishchenko, Ivan and Raveendran, Karthik and others},
-  journal={arXiv preprint arXiv:2006.10204},
-  year={2020}
+which represents the image row corresponding to the known reference height above ground level.
+
+#### Fallback Strategy
+
+When the marker cannot be detected, the reference row is approximated using a fixed fraction of image height:
+
+[
+midPx = 0.484 \times H_{image}
+]
+
+where (H_{image}) denotes image height in pixels.
+
+This fallback value was empirically determined for the image acquisition setup used in the study.
+
+---
+
+### Head Localization
+
+Accurate identification of the top of the head is critical for reliable anthropometric estimation.
+
+The child segmentation mask is first cropped to its bounding region. Pose landmark detection is subsequently performed using the BlazePose model through the MediaPipe Pose framework.
+
+The nose landmark is extracted and used to estimate the horizontal center of the head:
+
+[
+headCol
+]
+
+A narrow vertical band centered around this location is then examined within the segmentation mask.
+
+The uppermost foreground pixel contained within this band is identified as:
+
+[
+topPx
+]
+
+Restricting the search to the facial region reduces susceptibility to segmentation artifacts, raised-arm postures, and background objects that might otherwise influence estimation of the upper body boundary.
+
+---
+
+### Foot Localization
+
+The lower body boundary is estimated from the child segmentation mask.
+
+Rather than selecting the absolute lowest foreground pixel, the algorithm uses the 98th percentile of foreground row indices:
+
+[
+botPx
+]
+
+This approach improves robustness against segmentation noise and isolated outlier pixels near the feet while preserving a stable estimate of the lower body boundary.
+
+---
+
+### Geometric Height Estimation
+
+Height estimation is performed using a pinhole-camera geometric model.
+
+For each image view, projected body height is computed as:
+
+[
+P_p = botPx - topPx
+]
+
+where (P_p) denotes projected body height in image space.
+
+The projected distance between the reference row and the detected foot position is computed as:
+
+[
+P_c = botPx - midPx
+]
+
+Using the known reference height (H_c), height is estimated as:
+
+[
+H_i =
+\frac{H_c \times P_p}{P_c}
+]
+
+where:
+
+* (H_i) is the estimated height,
+* (H_c) is the known reference height,
+* (P_p) is projected body height,
+* (P_c) is projected reference distance.
+
+In the study accompanying this repository, (H_c = 70) cm.
+
+Predictions associated with invalid geometric configurations ((P_p \le 0) or (P_c \le 0)) are discarded.
+
+---
+
+### Multi-View Ensembling
+
+Independent height estimates are generated from front-view and side-view photographs.
+
+The final height prediction is computed using a weighted ensemble:
+
+[
+H_{ensemble}
+============
+
+\frac{
+\sum_i H_i P_{c,i}
+}{
+\sum_i P_{c,i}
 }
-```
+]
+
+where:
+
+* (H_i) denotes the height estimate from image view (i),
+* (P_{c,i}) denotes the corresponding projected reference distance.
+
+This weighting strategy assigns greater influence to predictions associated with larger geometric reference distances and improves robustness against view-specific segmentation or landmark localization errors.
+
+If only one valid prediction is available, that prediction is used directly.
+
+---
+
+## Evaluation
+
+Predicted heights are compared against manually measured anthropometric heights.
+
+The repository reports the following evaluation metrics:
+
+* Mean Absolute Error (MAE)
+* Root Mean Squared Error (RMSE)
+* Mean Absolute Percentage Error (MAPE)
+* Pearson Correlation Coefficient (r)
+
+These metrics are computed using all participants with valid ensemble predictions.
+
+---
+
+## Assumptions and Limitations
+
+The current implementation assumes:
+
+* A fixed camera configuration.
+* A reference marker positioned at a known height above ground level.
+* Full visibility of the child body.
+* Standing posture during image acquisition.
+* Adequate image quality for segmentation and landmark detection.
+
+Performance may degrade when these assumptions are violated. Additional validation is required under varying camera positions, lighting conditions, marker placements, and field deployment settings.
+
+---
+
+## References
+
+1. Liu S, Zeng Z, Ren T, et al. **Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection.** *arXiv*. 2023. doi:10.48550/arXiv.2303.05499
+
+2. Ravi N, Gabeur V, Hu YT, et al. **SAM 2: Segment Anything in Images and Videos.** *arXiv*. 2024. doi:10.48550/arXiv.2408.00714
+
+3. Lugaresi C, Tang J, Nash H, et al. **MediaPipe: A Framework for Building Perception Pipelines.** *arXiv*. 2019. doi:10.48550/arXiv.1906.08172
+
+4. Bazarevsky V, Grishchenko I, Raveendran K, et al. **BlazePose: On-Device Real-Time Body Pose Tracking.** *arXiv*. 2020. doi:10.48550/arXiv.2006.10204
+
+---
