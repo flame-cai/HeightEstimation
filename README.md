@@ -1,4 +1,4 @@
-# Estimating Pediatric Height From Monocular RGB Photographs for Child Nutrition Screening
+# Child Nutrition Screening: Estimating Pediatric Height From Monocular RGB Photographs
 
 Photograph-based pediatric standing height estimation using image segmentation, pose landmark detection, and geometric modeling.
 
@@ -6,7 +6,7 @@ Photograph-based pediatric standing height estimation using image segmentation, 
 
 ## Overview
 
-This repository accompanies the research letter **"Estimating Pediatric Height From Monocular RGB Photographs for Child Nutrition Screening"** and contains the implementation of a computer vision pipeline for estimating pediatric standing height from monocular RGB photographs.
+This repository accompanies the research letter **"Child Nutrition Screening: Estimating Pediatric Height From Monocular RGB Photographs"** and contains the implementation of a computer vision pipeline for estimating pediatric standing height from monocular RGB photographs.
 
 The proposed framework combines image segmentation, pose landmark detection, and geometric modeling to estimate standing height using ordinary smartphone photographs. The method requires a reference object positioned at a known height above ground level and does not require specialized depth sensors, stereo cameras, or dedicated anthropometric equipment.
 
