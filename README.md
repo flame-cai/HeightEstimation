@@ -24,6 +24,35 @@ The processing pipeline consists of five major stages:
 
 ---
 
+## Study Population
+
+The study included 126 children recruited through purposive sampling from six villages in Nashik district, Maharashtra, India (Deodongari, Karanjali, Kharshet, Khirkade, Pimpalpada, and Thanapada) as well as through local Anganwadi centers.
+
+The rural setting was selected because of the higher prevalence of undernutrition and growth faltering, enabling recruitment across a broad range of nutritional states. For model development, recruitment was targeted to achieve an approximately 50% prevalence of children classified as At-risk of stunting.
+
+The final cohort consisted of:
+
+* 85 children classified as At-risk
+* 41 children classified as Not-at-risk
+
+Classification was based on World Health Organization (WHO) Length/Height-for-Age (LHFA) criteria. Children were categorized as At-risk when their LHFA z-score was less than -2 and as Not-at-risk otherwise.
+
+No quotas were imposed with respect to participant age or biological sex.
+
+---
+
+## Anthropometric Reference Measurements
+
+Ground-truth height measurements were obtained by study personnel with extensive prior experience in anthropometric assessment, supported by local health workers.
+
+Height was measured once per participant using a standard clinical stadiometer and recorded in millimeters. No duplicate measurements were obtained.
+
+Each measurement was linked to the corresponding participant photographs through unique study identifiers and served as the reference standard for all analyses.
+
+Biological sex and date of birth were obtained from local Anganwadi records. Child age in days was calculated from the recorded date of birth and the date of assessment. No independent validation of Anganwadi records was performed.
+
+---
+
 ## Methodology
 
 ### Child Segmentation
@@ -166,22 +195,37 @@ Predictions associated with invalid geometric configurations (`Pp ≤ 0` or `Pc 
 
 ### Multi-View Ensembling
 
-Independent height estimates are generated from front-view and side-view photographs.
+Independent height estimates are generated from frontal and lateral RGB photographs.
 
-The final height prediction is computed using a weighted ensemble:
+When both image views are available, the final predicted height is computed as the arithmetic mean of the two independent estimates:
 
 ```text
-Hensemble = Σ(Hi × Pc_i) / Σ(Pc_i)
+Hensemble = (Hfront + Hside) / 2
 ```
 
 where:
 
-* `Hi` denotes the height estimate from image view `i`
-* `Pc_i` denotes the corresponding projected reference distance
+* `Hfront` is the frontal-view estimate
+* `Hside` is the lateral-view estimate
 
-This weighting strategy assigns greater influence to predictions associated with larger geometric reference distances and improves robustness against view-specific segmentation or landmark localization errors.
+No learned weighting scheme, calibration procedure, or dataset-specific optimization was applied.
 
-If only one valid prediction is available, that prediction is used directly.
+If only one valid image view is available, the corresponding prediction is used directly.
+
+---
+
+## Nutritional Risk Classification
+
+Predicted and measured heights were subsequently converted to WHO Length/Height-for-Age (LHFA) z-scores using participant age and biological sex.
+
+For children younger than 24 months, a 0.7 cm adjustment was applied to standing height measurements before LHFA z-score calculation in accordance with WHO Child Growth Monitoring Technical Guidelines regarding the difference between standing height and recumbent length.
+
+The adjustment was applied solely for LHFA determination and was not applied to raw standing-height analyses or visualizations. For example, Figure 1 presents unadjusted measured standing heights on the x-axis.
+
+Children were classified as:
+
+* **At-risk:** LHFA z-score < -2
+* **Not-at-risk:** LHFA z-score ≥ -2
 
 ---
 
@@ -197,6 +241,8 @@ The current implementation assumes:
 
 Performance may degrade when these assumptions are violated. Additional validation is required under varying camera positions, lighting conditions, marker placements, and field deployment settings.
 
+The study cohort was recruited through purposive sampling and was intentionally enriched for children at risk of stunting. Consequently, the sample may not be representative of the broader pediatric population.
+
 ---
 
 ## References
@@ -209,4 +255,4 @@ Performance may degrade when these assumptions are violated. Additional validati
 
 4. Bazarevsky V, Grishchenko I, Raveendran K, et al. *BlazePose: On-Device Real-Time Body Pose Tracking*. arXiv. 2020.
 
----
+5. World Health Organization. *WHO Anthro for Personal Computers, Version 3.2.2: Software for Assessing Growth and Development of the World's Children*. Geneva: WHO; 2010.
