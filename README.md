@@ -26,7 +26,7 @@ The processing pipeline consists of five major stages:
 
 ## Study Population
 
-The study included 126 children recruited through purposive sampling from six villages in Nashik district, Maharashtra, India as well as through local Anganwadi centers.
+The study included 126 children recruited through purposive sampling from six villages in Nashik district, Maharashtra, India through local Anganwadi centers.
 
 The rural setting was selected because of the higher prevalence of undernutrition and growth faltering, enabling recruitment across a broad range of nutritional states. For model development, recruitment was targeted to achieve an approximately 50% prevalence of children classified as At-risk of stunting.
 
@@ -255,4 +255,4 @@ The study cohort was recruited through purposive sampling and was intentionally 
 
 4. Bazarevsky V, Grishchenko I, Raveendran K, et al. *BlazePose: On-Device Real-Time Body Pose Tracking*. arXiv. 2020.
 
-5. World Health Organization. *WHO Anthro for Personal Computers, Version 3.2.2: Software for Assessing Growth and Development of the World's Children*. Geneva: WHO; 2010.
+5. Training Course on Child Growth Assessment, WHO Child Growth Standards
